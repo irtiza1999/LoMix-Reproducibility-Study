@@ -1,0 +1,45 @@
+{
+  "env": {
+    "timestamp": "2026-09-04T12:48:34",
+    "host": "Ishad",
+    "os": "Windows-10-10.0.26200-SP0",
+    "python": "3.10.21",
+    "torch": "2.2.2+cu121",
+    "cuda": "12.1",
+    "gpu": "NVIDIA GeForce GTX 960",
+    "capability": [
+      5,
+      2
+    ],
+    "vram_total_MiB": 4096,
+    "img_size": 224,
+    "batch_size": 1,
+    "num_classes": 9,
+    "iters": 50,
+    "warmup": 10
+  },
+  "rows": [
+    {
+      "encoder": "pvt_v2_b0",
+      "params_encoder_M": 3.41,
+      "params_decoder_M": 0.507,
+      "params_total_M": 3.921,
+      "gmacs": 0.657,
+      "latency_ms_mean": 17.7,
+      "latency_ms_std": 2.75,
+      "throughput_img_s": 56.5,
+      "peak_infer_vram_MiB": 34.1
+    },
+    {
+      "encoder": "pvt_v2_b2",
+      "params_encoder_M": 24.85,
+      "params_decoder_M": 1.914,
+      "params_total_M": 26.773,
+      "gmacs": 4.324,
+      "latency_ms_mean": 36.77,
+      "latency_ms_std": 7.08,
+      "throughput_img_s": 27.2,
+      "peak_infer_vram_MiB": 147.0
+    }
+  ]
+}

@@ -1,0 +1,164 @@
+import argparse
+import logging
+import os
+import random
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.backends.cudnn as cudnn
+
+from lib.networks import EMCADNet  # PVT_CASCADE removed: not defined anywhere in this repo (see tools/apply_low_vram_patch.py)
+from trainer import trainer_synapse
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--root_path', type=str,
+                    default='./data/synapse/train_npz_new', help='root dir for data')
+parser.add_argument('--volume_path', type=str,
+                    default='./data/synapse/test_vol_h5_new', help='root dir for validation volume data')
+parser.add_argument('--dataset', type=str,
+                    default='Synapse', help='experiment_name')
+parser.add_argument('--list_dir', type=str,
+                    default='./lists/lists_Synapse', help='list dir')
+parser.add_argument('--num_classes', type=int,
+                    default=9, help='output channel of network')
+# network related parameters
+parser.add_argument('--encoder', type=str,
+                    default='pvt_v2_b2', help='Name of encoder: pvt_v2_b2, pvt_v2_b0, resnet18, resnet34 ...')
+parser.add_argument('--expansion_factor', type=int,
+                    default=2, help='expansion factor in MSCB block')
+parser.add_argument('--kernel_sizes', type=int, nargs='+',
+                    default=[1, 3, 5], help='multi-scale kernel sizes in MSDC block')
+parser.add_argument('--lgag_ks', type=int,
+                    default=3, help='Kernel size in LGAG')
+parser.add_argument('--activation_mscb', type=str,
+                    default='relu6', help='activation used in MSCB: relu6 or relu')
+parser.add_argument('--no_dw_parallel', action='store_true', 
+                    default=False, help='use this flag to disable depth-wise parallel convolutions')
+parser.add_argument('--concatenation', action='store_true', 
+                    default=False, help='use this flag to concatenate feature maps in MSDC block')
+parser.add_argument('--no_pretrain', action='store_true', 
+                    default=False, help='use this flag to turn off loading pretrained enocder weights')
+parser.add_argument('--supervision', type=str,
+                    default='lomix', help='loss supervision: lomix, mutation, deep_supervision or last_layer')
+
+parser.add_argument('--max_iterations', type=int,
+                    default=50000, help='maximum epoch number to train')
+parser.add_argument('--max_epochs', type=int,
+                    default=300, help='maximum epoch number to train')
+parser.add_argument('--batch_size', type=int,
+                    default=6, help='batch_size per gpu')
+parser.add_argument('--base_lr', type=float,  default=0.0001,
+                    help='segmentation network learning rate')
+parser.add_argument('--img_size', type=int,
+                    default=224, help='input patch size of network input')
+parser.add_argument('--n_gpu', type=int, default=1, help='total gpu')
+parser.add_argument('--deterministic', type=int,  default=1,
+                    help='whether use deterministic training')
+parser.add_argument('--seed', type=int,
+                    default=2222, help='random seed')
+
+# --- low-VRAM adaptation flags (see tools/apply_low_vram_patch.py) ---
+parser.add_argument('--amp', action='store_true', default=False,
+                    help='mixed-precision forward (fp32 losses); cuts activation memory')
+parser.add_argument('--accum', type=int, default=1,
+                    help='gradient accumulation steps; effective batch = batch_size * accum')
+parser.add_argument('--num_workers', type=int, default=2,
+                    help='DataLoader workers (8 is a bad default on Windows)')
+parser.add_argument('--eval_every', type=int, default=1,
+                    help='run full-volume validation every N epochs')
+parser.add_argument('--resume', action='store_true', default=False,
+                    help='continue from train_state.pth in the snapshot dir if present, '
+                         'restoring optimizer/scaler/best_dice/iter so the run is '
+                         'identical to an uninterrupted one')
+parser.add_argument('--smoke_steps', type=int, default=0,
+                    help='stop after N training iterations and skip validation. '
+                         'Verification only -- exercises the real entry point cheaply.')
+parser.add_argument('--restore_train_mode', action='store_true', default=False,
+                    help='call model.train() after each validation. Upstream does not, '
+                         'so after epoch 0 training continues in eval mode. Default OFF '
+                         'preserves upstream behaviour; enable only as a reported experiment.')
+
+args = parser.parse_args()
+
+if __name__ == "__main__":
+    if not args.deterministic:
+        cudnn.benchmark = True
+        cudnn.deterministic = False
+    else:
+        cudnn.benchmark = False
+        cudnn.deterministic = True
+    
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+    
+    dataset_name = args.dataset
+    dataset_config = {
+        'Synapse': {
+            'root_path': args.root_path,
+            'volume_path': args.volume_path,
+            'list_dir': args.list_dir,
+            'num_classes': args.num_classes,
+            'z_spacing': 1,
+        },
+    }
+    args.num_classes = dataset_config[dataset_name]['num_classes']
+    args.root_path = dataset_config[dataset_name]['root_path']
+    args.volume_path = dataset_config[dataset_name]['volume_path']
+    args.z_spacing = dataset_config[dataset_name]['z_spacing']
+    args.list_dir = dataset_config[dataset_name]['list_dir']
+    print(args.no_pretrain)
+    if args.concatenation:
+        aggregation = 'concat'
+    else: 
+        aggregation = 'add'
+    
+    if args.no_dw_parallel:
+        dw_mode = 'series'
+    else: 
+        dw_mode = 'parallel'
+    
+    print(aggregation)
+    use_learnable_weights = False
+    if args.supervision == 'lomix':
+        operations = ['add', 'mul', 'wf', 'concat']
+        use_learnable_weights = True
+    elif args.supervision == 'mutation':
+        operations =['add']
+    else:
+        operations = []
+
+    if use_learnable_weights == True:
+        learnable = 'learnable_'
+    else:
+        learnable = ''
+    run = 1
+    #args.exp = args.encoder + '_CASCADE_loss_'+learnable+'relative_softp_' + args.supervision + '_'+str(operations)+'_output_last_layer_Run'+str(run)+'_' + dataset_name + str(args.img_size)+'_nclass_'+str(args.num_classes) #add_sub_multiply_concat #_final_layer
+    args.exp = args.encoder + '_EMCADNet_kernel_sizes_' + str(args.kernel_sizes) + '_dw_' + dw_mode + '_' + aggregation + '_lgag_ks_' + str(args.lgag_ks) + '_act_mscb_' + args.activation_mscb + '_loss_'+learnable+'relative_softp_' + args.supervision + '_'+str(operations)+'_output_last_layer_Run'+str(run)+'_' + dataset_name + str(args.img_size)#+'_nclass_'+str(args.num_classes) #add_sub_multiply_concat #_final_layer
+    #snapshot_path = "model_pth/{}/{}".format(args.exp, args.encoder + '_loss_'+learnable+'relative_softp_' + args.supervision + '_'+str(operations)+'_output_last_layer_Run'+str(run)) #add_sub_multiply_concat #_final_layer
+    snapshot_path = "model_pth/{}/{}".format(args.exp, args.encoder + '_EMCADNet_kernel_sizes_' + str(args.kernel_sizes) + '_dw_' + dw_mode + '_' + aggregation + '_lgag_ks_' + str(args.lgag_ks) + '_act_mscb_' + args.activation_mscb + '_loss_'+learnable+'relative_softp_' + args.supervision + '_'+str(operations)+'_output_last_layer_Run'+str(run)) #add_sub_multiply_concat #_final_layer
+    snapshot_path = snapshot_path.replace('[', '').replace(']', '').replace(', ', '_')
+    
+    snapshot_path = snapshot_path + '_pretrain' if not args.no_pretrain else snapshot_path
+    snapshot_path = snapshot_path+'_'+str(args.max_iterations)[0:2]+'k' if args.max_iterations != 50000 else snapshot_path
+    snapshot_path = snapshot_path + '_epo' +str(args.max_epochs) if args.max_epochs != 300 else snapshot_path
+    snapshot_path = snapshot_path+'_bs'+str(args.batch_size)
+    snapshot_path = snapshot_path + '_lr' + str(args.base_lr) if args.base_lr != 0.0001 else snapshot_path
+    snapshot_path = snapshot_path + '_'+str(args.img_size)
+    snapshot_path = snapshot_path + '_s'+str(args.seed) if args.seed!=1234 else snapshot_path
+
+    if not os.path.exists(snapshot_path):
+        os.makedirs(snapshot_path)
+    
+    print(snapshot_path)
+    model = EMCADNet(num_classes=args.num_classes, kernel_sizes=args.kernel_sizes, expansion_factor=args.expansion_factor, dw_parallel=not args.no_dw_parallel, add=not args.concatenation, lgag_ks=args.lgag_ks, activation=args.activation_mscb, encoder=args.encoder, pretrain= not args.no_pretrain)
+    #model = PVT_CASCADE(n_class=args.num_classes, encoder=args.encoder, pretrain=not args.no_pretrain, head='Conv2D', bbox=False, cds=False)
+    
+    model.cuda()
+
+    print('Model successfully created.')
+    
+    trainer = {'Synapse': trainer_synapse,}
+    trainer[dataset_name](args, model, snapshot_path, supervision=args.supervision, operations=operations, use_learnable_weights=use_learnable_weights)

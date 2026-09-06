@@ -1,0 +1,104 @@
+[
+  {
+    "log": "20260906_133420_pvt_v2_b2_lomix_bs2x3_e20_s2222.log",
+    "stamp": "20260906_133420",
+    "encoder": "pvt_v2_b2",
+    "supervision": "lomix",
+    "per_step_batch": 2,
+    "accum": 3,
+    "max_epochs": 20,
+    "seed": 2222,
+    "amp": "False",
+    "eval_every": 2,
+    "num_workers": "2",
+    "effective_batch": 6,
+    "train_slices": 2211,
+    "iters_per_epoch": 1106,
+    "diverged_at_iter": 14900,
+    "diverged_at_epoch": 13,
+    "n_validations": 8,
+    "best_mean_dice": 0.7225,
+    "last_mean_dice": 0.0,
+    "dice_curve": [
+      0.6091,
+      0.6759,
+      0.7077,
+      0.7029,
+      0.7225,
+      0.7108,
+      0.0,
+      0.0
+    ],
+    "peak_train_vram_MiB": 1768.8,
+    "first_logged_loss": 38.3415,
+    "last_logged_loss": 11.149,
+    "last_epoch_logged": 13,
+    "exit_code": -1,
+    "wall_clock_min": 593.9,
+    "final_original_weights": [
+      NaN,
+      NaN,
+      NaN,
+      NaN
+    ],
+    "final_synthesized_weights": {
+      "add": [
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN
+      ],
+      "mul": [
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN
+      ],
+      "wf": [
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN
+      ],
+      "concat": [
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN
+      ]
+    },
+    "resumed_from_epoch": null,
+    "failures": [
+      "exit -1"
+    ],
+    "status": "DIVERGED (NaN) at epoch 13"
+  }
+]

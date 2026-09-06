@@ -1,0 +1,334 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{titlesec}
+
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+\setlist[itemize]{leftmargin=1.4em,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+
+\definecolor{codebg}{gray}{0.96}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  framerule=0pt,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  xleftmargin=0.5em,
+  showstringspaces=false,
+  aboveskip=0.7em,
+  belowskip=0.7em
+}
+
+\newcommand{\code}[1]{\texttt{\small #1}}
+
+\title{\vspace{-2em}\textbf{LoMix: Core Contributions, Replication Findings,}\\
+\textbf{and Where It Goes Next}\\[0.4em]
+\large Deliverable 2 --- Technical Report}
+\author{Md. Irtiza Hossain \\
+\small M.S. Computer Science \& Engineering, BRAC University \\
+\small \href{mailto:mohammad.irtiza.hossain@gmail.com}{mohammad.irtiza.hossain@gmail.com}}
+\date{6 September 2026}
+
+\begin{document}
+\maketitle
+
+\noindent\begin{tabular}{@{}ll@{}}
+\textbf{Paper} & Md Mostafijur Rahman, Radu Marculescu. \emph{LoMix: Learnable Weighted} \\
+               & \emph{Multi-Scale Logits Mixing for Medical Image Segmentation.} NeurIPS 2025. \\
+\textbf{Code}  & \code{github.com/SLDGroup/LoMix} @ \code{464a945} \\
+\textbf{Data}  & Synapse Multi-organ (BTCV), 9 classes, $224\times224$ \\
+\textbf{Hardware} & GTX 960, 4\,GB, capability 5.2 (Maxwell, no tensor cores) \\
+\end{tabular}
+
+\vspace{0.6em}
+\noindent{\small Full setup notes, run logs, per-arm curves and reproduction
+commands are in the accompanying execution summary (Deliverable 1).}
+
+\section{What the paper does}
+
+A multi-scale decoder emits one logit map per stage. Classical deep supervision
+applies a loss to each and sums them with fixed, usually uniform weights. LoMix
+changes two things.
+
+\textbf{Mixing.} It supervises not only the individual maps but \emph{combinations}
+of them. For four decoder outputs it enumerates all 11 subsets of size $\geq 2$
+and fuses each subset under four operations --- \code{add}, \code{mul},
+\code{wf} (a small learned fusion module) and \code{concat} --- producing 44
+synthetic logit maps, each receiving its own CE + Dice loss.
+
+\textbf{Learned weights.} Every individual map and every mixed map contributes
+through a learned scalar passed through \code{softplus}, optimised jointly with
+the network by the same AdamW step.
+
+\begin{lstlisting}
+  encoder -- decoder --+-- p4 --+
+                       |-- p3 --|   subsets (11)  x  ops (add, mul, wf, concat)
+                       |-- p2 --|        |
+                       +-- p1 --+        v
+                          |        44 mixed maps -- CE+Dice -- x softplus(w_op,subset)
+                          |                                          |
+                          +-------- CE+Dice -- x softplus(w_i) ------+--> total loss
+
+  inference:  encoder -- decoder -- p1        (mixing lives only in the loss)
+\end{lstlisting}
+
+The property that makes this attractive in practice: \textbf{all of it lives in
+the loss}. The mixing weights are parameters of
+\code{CombinatorialMutationsLossModule}, not of \code{EMCADNet}. At test time
+the network is unchanged --- same graph, same FLOPs, same latency. Training cost
+rises; inference cost does not.
+
+\section{Why I chose this paper}
+
+It asks a question my own work keeps running into, in a different domain.
+\textbf{CLEAR-MoE} (under review) extracts sparse experts from a \emph{frozen}
+Vision Transformer and selects which layers to convert using a
+calibration-driven criterion --- a decision about which internal signals to
+trust. \textbf{Predictive Self-Conditioning} (under review, WACV 2027) feeds a
+LiDAR detector's own predictions back as conditioning and is evaluated on
+\emph{calibration}, not accuracy alone, because a self-conditioning loop that
+trusts a wrong prediction compounds its own error. LoMix asks the same question
+at the supervision level: \emph{which of my own multi-scale outputs deserve
+weight?} It answers with a learned scalar.
+
+\section{Replication design}
+
+The repository exposes \code{-{}-supervision \{last\_layer, deep\_supervision,
+mutation, lomix\}} over one fixed network, which is a ready-made ablation
+ladder: the network, the data and the schedule are identical and only the loss
+differs.
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Arm} & \textbf{Isolates} \\
+\midrule
+\code{last\_layer} & no deep supervision at all \\
+\code{deep\_supervision} & per-scale losses, uniform weights \\
+\code{mutation} & + logit mixing, \textbf{unweighted} \\
+\code{lomix} & + \textbf{learnable} weights \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\code{mutation} $\rightarrow$ \code{lomix} is the load-bearing comparison: it
+isolates the learned weighting from the mixing itself. If the gain came only
+from having more loss terms, that pair would show it.
+
+Constraints forced a \textbf{reduced-budget reproduction}: 20 of the paper's 300
+epochs, per-step batch 2 with gradient accumulation 3 to restore the paper's
+effective batch of 6, fp32, validation every 2 epochs. Configuration was chosen
+by measurement, not guesswork --- a memory/latency sweep showed that AMP is
+2.8--3.2$\times$ \emph{slower} on a card without tensor cores, and that the
+binding constraint is the Windows 2-second GPU watchdog rather than VRAM.
+
+\section{Findings}
+
+\subsection{The zero-inference-overhead claim holds}
+
+\begin{center}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\textbf{Encoder} & \textbf{Params (M)} & \textbf{Dec.\ (M)} & \textbf{GMACs} &
+\textbf{Latency} & \textbf{Peak VRAM} \\
+\midrule
+pvt\_v2\_b0 & 3.921 & 0.507 & 0.657 & 17.7\,ms & 34\,MiB \\
+pvt\_v2\_b2 & 26.773 & 1.914 & 4.324 & 36.8\,ms & 147\,MiB \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+All four arms share a byte-identical inference graph, so one measurement settles
+it for all of them. The decoder's 1.914\,M parameters match EMCAD's published
+decoder cost, confirming the model is built as intended.
+
+\subsection{Training cost, which the paper does not report}
+
+Same network, same batch, only \code{-{}-supervision} differs:
+
+\begin{center}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Arm} & \textbf{Peak train VRAM} & \textbf{Step time} &
+\textbf{vs \code{last\_layer}} \\
+\midrule
+\code{last\_layer} & 1008\,MiB & 649\,ms & $1.00\times$ \\
+\code{deep\_supervision} & 1054\,MiB & 708\,ms & $1.09\times$ \\
+\code{mutation} & 1268\,MiB & 938\,ms & $1.45\times$ \\
+\code{lomix} & 2290\,MiB & 1649\,ms & $\mathbf{2.54\times}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+LoMix costs $2.54\times$ step time and $2.27\times$ training memory, and two
+thirds of that gap comes from the learnable-weight arm alone. On constrained
+hardware this decides whether the method is runnable at all --- the same class
+of concern the lab's efficiency work targets, applied to training rather than
+inference.
+
+\subsection{Accuracy: the ordering did not reproduce at 20 epochs}
+
+\begin{center}
+\begin{tabular}{@{}lrl@{}}
+\toprule
+\textbf{Arm} & \textbf{Best mean Dice} & \textbf{Status} \\
+\midrule
+\code{last\_layer} & 0.6764 & completed \\
+\code{deep\_supervision} & \textbf{0.7979} & completed \\
+\code{mutation} & 0.7788 & completed \\
+\code{lomix} & 0.7225 (pre-divergence) & \textbf{diverged (NaN) at epoch 13} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Two observations. \code{last\_layer} peaks at its \emph{first} validation and
+decays thereafter, while the supervised arms climb steadily --- consistent with
+\S4.5. And the learned mixing weights had barely differentiated: from a common
+initialisation of $\mathrm{softplus}(0) = 0.693$, the four per-scale weights
+ended at 0.379, 0.386, 0.392, 0.400. The mechanism supposed to create LoMix's
+advantage had not yet engaged at this budget, which is the most likely
+explanation for the ordering and is not separable from it with one seed at 20
+epochs.
+
+\subsection{The \code{lomix} arm diverged, and the cause is in the loss}
+
+At iteration 14900, epoch 13, all loss terms became NaN simultaneously and every
+later validation returned 0.000. Not a hardware event: fp32 throughout, no OOM,
+no watchdog reset, and the saved weights are finite. Two defects in the
+combinatorial loss explain it, both verified empirically rather than read off
+the source (\code{tools/diagnose\_loss\_ops.py}).
+
+\textbf{\code{mul} multiplies raw logits}, so a $k$-map combination is a
+$k$-fold product growing like $|\text{logit}|^k$. Measured on the trained
+checkpoint's own logits ($\max |p| = 6.16$):
+
+\begin{center}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Operation} & $k=2$ & $k=3$ & $k=4$ \\
+\midrule
+\code{add} & 12.0 & 17.9 & 23.6 \\
+\textbf{\code{mul}} & \textbf{36.2} & \textbf{211.0} & \textbf{1214.0} \\
+\code{wf} & 6.1 & 6.1 & 5.9 \\
+\code{concat} & 2.8 & 2.9 & 1.9 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+CE and Dice saturate at that magnitude and the gradient overflows. Nothing clips
+or normalises the product. This is a property of the method as released, not of
+this hardware.
+
+\textbf{\code{concat} rebuilds a random convolution on every forward pass.} The
+$1\times1$ conv that fuses the concatenated maps is constructed \emph{inside}
+\code{forward}, randomly initialised each call, never registered as a submodule
+and never given to the optimizer. Calling the loss twice with identical inputs
+under \code{no\_grad}:
+
+\begin{center}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Operation} & \textbf{Max difference between two identical calls} \\
+\midrule
+\code{add} / \code{mul} / \code{wf} & 0.0 (deterministic) \\
+\textbf{\code{concat}} & \textbf{5.41 (non-deterministic)} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+None of the loss module's 66 parameter tensors belongs to it. So the
+\code{concat} branch cannot learn and injects a fresh random projection into the
+decoder each step. This predicts exactly what the weight readout shows:
+\code{concat}'s eleven learned weights collapsed to a common 0.3755--0.3770 and
+stopped moving, because there is no gradient signal for them to differentiate
+on. Of the four operations, one is inert by construction and another is
+numerically unbounded.
+
+\subsection{Three further defects in the released code}
+
+\begin{itemize}
+\item \textbf{The training script cannot start.}
+\code{train\_synapse\_lomix.py:10} imports \code{PVT\_CASCADE}, defined nowhere
+in the repository; the only other reference is a commented-out line.
+\item \textbf{Training continues in eval mode.} \code{model.train()} is called
+once before the epoch loop, \code{inference()} calls \code{model.eval()} after
+every epoch, and nothing switches back --- so from epoch 1 the decoder's
+BatchNorm uses frozen running statistics. The same pattern appears in EMCAD and
+G-CASCADE. Left intact here, since the published results were produced by this
+code; exposed behind an opt-in flag for a separate experiment.
+\item \textbf{Windows portability.} \code{worker\_init\_fn} is a local function,
+which \code{spawn} cannot pickle, so multi-worker loading fails on Windows and
+works on Linux.
+\end{itemize}
+
+\section{Limitations of this replication}
+
+Single seed, 20 of 300 epochs, one dataset, one encoder, no statistical testing.
+The \code{deep\_supervision}/\code{mutation} gap (0.798 vs 0.779) is well inside
+what one seed can produce. What these runs \textbf{do} support independently of
+budget: the inference-cost claim (measured directly), the training-cost ratios
+(measured under identical conditions), and the two loss defects (verified on the
+model's own logits, not dependent on training length). What they do \textbf{not}
+settle is whether LoMix outperforms uniform deep supervision at full budget ---
+that needs the 300-epoch run this hardware cannot deliver.
+
+\section{Where I would take it}
+
+Two directions follow directly from the findings, and the first is my Step 2
+proposal.
+
+\textbf{Uncertainty-conditioned mixing weights.} LoMix learns one global answer
+to ``which scale do I trust'', then freezes it. \S4.3 shows those weights
+differentiate very slowly; \S4.2 shows enumerating all 44 combinations is what
+makes training expensive. Conditioning the weights on a per-sample uncertainty
+estimate addresses both: it gives the weights a richer signal than a single
+global scalar, and it offers a principled basis for \emph{selecting} which
+subsets are worth supervising rather than enumerating all of them --- cutting
+cost on precisely the axis that dominates. Because the weights live in the loss,
+the inference graph stays untouched, preserving the property that makes LoMix
+deployable. Evaluated on calibration (ECE, reliability) as well as Dice, this
+connects directly to the calibration-driven selection in CLEAR-MoE and the
+confidence-aware objective in my LiDAR detection work.
+
+\textbf{Bounded mixing operations.} Multiplying softmax probabilities rather
+than raw logits, or normalising the product, would remove the divergence mode in
+\S4.4 at no representational cost --- and registering the \code{concat} conv
+properly would make a quarter of the operation set functional for the first
+time. Both are small changes with a measurable prediction attached: if
+\code{concat} is currently inert, fixing it should change its learned weights
+away from the collapsed value.
+
+\appendix
+\section*{Appendix --- slide outline (6 slides)}
+\addcontentsline{toc}{section}{Appendix}
+
+\begin{enumerate}
+\item \textbf{LoMix in one slide} --- decoder logits $\rightarrow$ subset mixing
+$\rightarrow$ learned weights; loss-only, therefore zero inference overhead.
+\item \textbf{Why this paper} --- CLEAR-MoE (calibration-driven selection) and
+PSC (self-conditioning judged on calibration) ask the same question.
+\item \textbf{Setup} --- four arms, one network; the 4\,GB deviation table; AMP
+measured slower, TDR watchdog as the real constraint.
+\item \textbf{What reproduced} --- efficiency table; training-cost table
+($2.54\times$).
+\item \textbf{What did not} --- ablation table, divergence at epoch 13, and the
+two loss defects with the \code{mul} magnitude and \code{concat} determinism
+evidence.
+\item \textbf{Next} --- uncertainty-conditioned weights, bounded operations
+$\rightarrow$ Step 2 proposal.
+\end{enumerate}
+
+\end{document}

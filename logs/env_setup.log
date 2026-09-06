@@ -1,0 +1,100 @@
+﻿Requirement already satisfied: albumentations==1.1.0 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (1.1.0)
+Requirement already satisfied: segmentation-mask-overlay==0.3.4 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (0.3.4)
+Collecting huggingface-hub<1.0
+  Downloading huggingface_hub-0.36.2-py3-none-any.whl.metadata (15 kB)
+Requirement already satisfied: medpy in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (0.5.2)
+Requirement already satisfied: SimpleITK in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (2.5.6)
+Requirement already satisfied: nibabel in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (5.4.2)
+Requirement already satisfied: h5py in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (3.16.0)
+Requirement already satisfied: scipy in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (1.15.3)
+Requirement already satisfied: pandas in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (2.3.3)
+Requirement already satisfied: matplotlib in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (3.10.9)
+Requirement already satisfied: seaborn in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (0.13.2)
+Requirement already satisfied: scikit-image in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (0.25.2)
+Requirement already satisfied: scikit-learn in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (1.7.2)
+Requirement already satisfied: opencv-python in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (4.11.0.86)
+Requirement already satisfied: tqdm in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (4.70.0)
+Requirement already satisfied: einops in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (0.8.2)
+Requirement already satisfied: tensorboardX in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (2.6.5)
+Requirement already satisfied: pyyaml in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (6.0.3)
+Requirement already satisfied: tabulate in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (0.10.0)
+Requirement already satisfied: numpy>=1.11.1 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from albumentations==1.1.0) (1.26.4)
+Requirement already satisfied: qudida>=0.0.4 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from albumentations==1.1.0) (0.0.4)
+Requirement already satisfied: opencv-python-headless>=4.1.1 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from albumentations==1.1.0) (4.11.0.86)
+Requirement already satisfied: Pillow>=7.2.0 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from segmentation-mask-overlay==0.3.4) (12.3.0)
+Requirement already satisfied: filelock in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from huggingface-hub<1.0) (3.32.3)
+Requirement already satisfied: fsspec>=2023.5.0 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from huggingface-hub<1.0) (2026.7.0)
+Requirement already satisfied: packaging>=20.9 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from huggingface-hub<1.0) (26.3)
+Collecting requests (from huggingface-hub<1.0)
+  Downloading requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)
+Requirement already satisfied: typing-extensions>=3.7.4.3 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from huggingface-hub<1.0) (4.16.0)
+Requirement already satisfied: importlib-resources>=5.12 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from nibabel) (7.1.0)
+Requirement already satisfied: python-dateutil>=2.8.2 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from pandas) (2.9.0.post0)
+Requirement already satisfied: pytz>=2020.1 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from pandas) (2026.3.post1)
+Requirement already satisfied: tzdata>=2022.7 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from pandas) (2026.3)
+Requirement already satisfied: contourpy>=1.0.1 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from matplotlib) (1.3.2)
+Requirement already satisfied: cycler>=0.10 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from matplotlib) (0.12.1)
+Requirement already satisfied: fonttools>=4.22.0 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from matplotlib) (4.64.0)
+Requirement already satisfied: kiwisolver>=1.3.1 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from matplotlib) (1.5.1)
+Requirement already satisfied: pyparsing>=3 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from matplotlib) (3.3.2)
+Requirement already satisfied: networkx>=3.0 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from scikit-image) (3.4.2)
+Requirement already satisfied: imageio!=2.35.0,>=2.33 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from scikit-image) (2.37.4)
+Requirement already satisfied: tifffile>=2022.8.12 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from scikit-image) (2025.5.10)
+Requirement already satisfied: lazy-loader>=0.4 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from scikit-image) (0.5)
+Requirement already satisfied: joblib>=1.2.0 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from scikit-learn) (1.6.0)
+Requirement already satisfied: threadpoolctl>=3.1.0 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from scikit-learn) (3.6.0)
+Requirement already satisfied: colorama in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from tqdm) (0.4.6)
+Requirement already satisfied: protobuf>=3.20 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from tensorboardX) (7.36.1)
+Requirement already satisfied: cloudpickle>=3.0 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from joblib>=1.2.0->scikit-learn) (3.1.2)
+Requirement already satisfied: six>=1.5 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from python-dateutil>=2.8.2->pandas) (1.17.0)
+Collecting charset_normalizer<4,>=2 (from requests->huggingface-hub<1.0)
+  Downloading charset_normalizer-3.5.1-cp310-cp310-win_amd64.whl.metadata (46 kB)
+Requirement already satisfied: idna<4,>=2.5 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from requests->huggingface-hub<1.0) (3.19)
+Collecting urllib3<3,>=1.26 (from requests->huggingface-hub<1.0)
+  Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)
+Requirement already satisfied: certifi>=2023.5.7 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from requests->huggingface-hub<1.0) (2026.7.22)
+Downloading huggingface_hub-0.36.2-py3-none-any.whl (566 kB)
+   ---------------------------------------- 566.4/566.4 kB 6.5 MB/s  0:00:00
+Downloading requests-2.34.2-py3-none-any.whl (73 kB)
+Downloading charset_normalizer-3.5.1-cp310-cp310-win_amd64.whl (206 kB)
+Downloading urllib3-2.7.0-py3-none-any.whl (131 kB)
+Installing collected packages: urllib3, charset_normalizer, requests, huggingface-hub
+  Attempting uninstall: huggingface-hub
+    Found existing installation: huggingface_hub 1.30.0
+    Uninstalling huggingface_hub-1.30.0:
+      Successfully uninstalled huggingface_hub-1.30.0
+
+Successfully installed charset_normalizer-3.5.1 huggingface-hub-0.36.2 requests-2.34.2 urllib3-2.7.0
+Looking in indexes: https://download.pytorch.org/whl/cu121
+Collecting torch==2.2.2+cu121
+  Using cached torch-2.2.2%2Bcu121-cp310-cp310-win_amd64.whl (2454.8 MB)
+Collecting torchvision==0.17.2+cu121
+  Using cached torchvision-0.17.2%2Bcu121-cp310-cp310-win_amd64.whl (5.7 MB)
+Requirement already satisfied: filelock in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from torch==2.2.2+cu121) (3.32.3)
+Requirement already satisfied: typing-extensions>=4.8.0 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from torch==2.2.2+cu121) (4.16.0)
+Requirement already satisfied: sympy in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from torch==2.2.2+cu121) (1.14.0)
+Requirement already satisfied: networkx in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from torch==2.2.2+cu121) (3.4.2)
+Requirement already satisfied: jinja2 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from torch==2.2.2+cu121) (3.1.6)
+Requirement already satisfied: fsspec in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from torch==2.2.2+cu121) (2026.7.0)
+Requirement already satisfied: numpy in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from torchvision==0.17.2+cu121) (1.26.4)
+Requirement already satisfied: pillow!=8.3.*,>=5.3.0 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from torchvision==0.17.2+cu121) (12.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from jinja2->torch==2.2.2+cu121) (3.0.3)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (from sympy->torch==2.2.2+cu121) (1.3.0)
+Installing collected packages: torch, torchvision
+
+Successfully installed torch-2.2.2+cu121 torchvision-0.17.2+cu121
+Requirement already satisfied: timm==0.6.12 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (0.6.12)
+Requirement already satisfied: thop in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (0.1.1.post2209072238)
+Requirement already satisfied: ptflops in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (0.7.5)
+Requirement already satisfied: torchprofile in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (0.1.0)
+Requirement already satisfied: numpy<2 in c:\users\useras\anaconda3\envs\lomix\lib\site-packages (1.26.4)
+python   3.10.21
+  torch                              2.2.2+cu121 (cuda 12.1)
+  torch install tree                 torch-2.2.2+cu121.dist-info
+  gpu                                NVIDIA GeForce GTX 960 sm_52 (build archs cover sm_5x)
+  gpu math                           fp32 ok (-0.0102), fp16 ok (-0.0630)
+  timm                               0.6.12 (0.6.x APIs present)
+  numpy                              1.26.4
+  repo deps                          all present
+
+ENVIRONMENT OK

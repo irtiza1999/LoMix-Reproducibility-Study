@@ -1,0 +1,41 @@
+# Local Python and editor state
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.vscode/
+
+# Local environments and secrets
+.env
+.venv/
+venv/
+env/
+
+# Experiment data and model artifacts
+/repos/LoMix/data/
+/repos/LoMix/model_pth/
+/repos/LoMix/pretrained_pth/
+/repos/LoMix/runs/
+/repos/LoMix/logs/
+**/*.npz
+**/*.h5
+**/*.pth
+**/*.pt
+**/*.ckpt
+
+# Bundled upstream reference repositories are not required by the harness.
+# They remain locally available but are excluded from this study repository.
+/repos/EMCAD/
+/repos/G-CASCADE/
+/repos/LoMix/.git-upstream/
+
+# Generated reports and scratch output
+*.log
+*.tmp
+*.bak
+*.swp
+
+# Root-level measured evidence is part of the study record.
+!/logs/
+!/logs/*.log
+!/logs/*.json

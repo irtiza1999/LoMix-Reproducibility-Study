@@ -1,0 +1,208 @@
+{
+  "env": {
+    "timestamp": "2026-09-04T12:59:57",
+    "host": "Ishad",
+    "gpu": "NVIDIA GeForce GTX 960",
+    "capability": [
+      5,
+      2
+    ],
+    "vram_total_MiB": 4096,
+    "vram_free_at_start_MiB": 3395,
+    "torch": "2.2.2+cu121",
+    "supervision": "lomix",
+    "tdr_threshold_s": 2.0
+  },
+  "rows": [
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 578.6,
+      "step_ms": 605.3,
+      "tdr_risk": false,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b0",
+      "img_size": 224,
+      "batch_size": 1,
+      "amp": "off"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 1095.9,
+      "step_ms": 935.5,
+      "tdr_risk": false,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b0",
+      "img_size": 224,
+      "batch_size": 2,
+      "amp": "off"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 1617.9,
+      "step_ms": 1516.3,
+      "tdr_risk": false,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b0",
+      "img_size": 224,
+      "batch_size": 3,
+      "amp": "off"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 2130.2,
+      "step_ms": 1709.2,
+      "tdr_risk": false,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b0",
+      "img_size": 224,
+      "batch_size": 4,
+      "amp": "off"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 3180.1,
+      "step_ms": 5869.9,
+      "tdr_risk": true,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b0",
+      "img_size": 224,
+      "batch_size": 6,
+      "amp": "off"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 556.6,
+      "step_ms": 1311.8,
+      "tdr_risk": false,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b0",
+      "img_size": 224,
+      "batch_size": 1,
+      "amp": "on"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 1047.9,
+      "step_ms": 3321.4,
+      "tdr_risk": true,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b0",
+      "img_size": 224,
+      "batch_size": 2,
+      "amp": "on"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 1542.9,
+      "step_ms": 4275.0,
+      "tdr_risk": true,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b0",
+      "img_size": 224,
+      "batch_size": 3,
+      "amp": "on"
+    },
+    {
+      "status": "ERROR: RuntimeError: GET was unable to find an engine to execute this computation",
+      "encoder": "pvt_v2_b0",
+      "img_size": 224,
+      "batch_size": 4,
+      "amp": "on"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 978.5,
+      "step_ms": 778.5,
+      "tdr_risk": false,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b2",
+      "img_size": 224,
+      "batch_size": 1,
+      "amp": "off"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 1632.9,
+      "step_ms": 1414.8,
+      "tdr_risk": false,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b2",
+      "img_size": 224,
+      "batch_size": 2,
+      "amp": "off"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 2289.6,
+      "step_ms": 2192.5,
+      "tdr_risk": true,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b2",
+      "img_size": 224,
+      "batch_size": 3,
+      "amp": "off"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 2941.4,
+      "step_ms": 5398.3,
+      "tdr_risk": true,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b2",
+      "img_size": 224,
+      "batch_size": 4,
+      "amp": "off"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 4268.3,
+      "step_ms": 11143.5,
+      "tdr_risk": true,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b2",
+      "img_size": 224,
+      "batch_size": 6,
+      "amp": "off"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 944.4,
+      "step_ms": 1342.7,
+      "tdr_risk": false,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b2",
+      "img_size": 224,
+      "batch_size": 1,
+      "amp": "on"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 1513.8,
+      "step_ms": 3969.2,
+      "tdr_risk": true,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b2",
+      "img_size": 224,
+      "batch_size": 2,
+      "amp": "on"
+    },
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 2081.7,
+      "step_ms": 4495.3,
+      "tdr_risk": true,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b2",
+      "img_size": 224,
+      "batch_size": 3,
+      "amp": "on"
+    },
+    {
+      "status": "ERROR: RuntimeError: GET was unable to find an engine to execute this computation",
+      "encoder": "pvt_v2_b2",
+      "img_size": 224,
+      "batch_size": 4,
+      "amp": "on"
+    }
+  ]
+}

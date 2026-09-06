@@ -1,0 +1,455 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{titlesec}
+
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+\setlist[itemize]{leftmargin=1.4em,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+
+\definecolor{codebg}{gray}{0.96}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  framerule=0pt,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  xleftmargin=0.5em,
+  showstringspaces=false,
+  aboveskip=0.7em,
+  belowskip=0.7em
+}
+
+\newcommand{\code}[1]{\texttt{\small #1}}
+
+\title{\vspace{-2em}\textbf{Deliverable 1 --- Experimental Execution Summary}\\[0.4em]
+\large Replication of LoMix (NeurIPS 2025) on Synapse Multi-organ}
+\author{Md. Irtiza Hossain \\
+\small M.S. Computer Science \& Engineering, BRAC University \\
+\small \href{mailto:mohammad.irtiza.hossain@gmail.com}{mohammad.irtiza.hossain@gmail.com}}
+\date{6 September 2026}
+
+\begin{document}
+\maketitle
+
+\noindent\begin{tabular}{@{}ll@{}}
+\textbf{Paper} & LoMix: Learnable Weighted Multi-Scale Logits Mixing for Medical \\
+               & Image Segmentation. Rahman \& Marculescu, NeurIPS 2025. \\
+\textbf{Code}  & \code{github.com/SLDGroup/LoMix} @ commit \code{464a945} \\
+\textbf{Data}  & Synapse Multi-organ (BTCV), 9 classes, $224\times224$, authors' archive \\
+\end{tabular}
+
+\vspace{0.8em}
+\noindent\fbox{\parbox{0.97\textwidth}{\small
+Every number below came out of a run on this machine, and the log that produced
+it is in \code{logs/}. Nothing is copied from the paper into a results table.
+Where a run did not produce a number, the table says so.}}
+
+\section{Environment}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Item} & \textbf{Value} \\
+\midrule
+GPU & NVIDIA GeForce GTX 960, 4\,GB, capability 5.2 (Maxwell, no tensor cores) \\
+Driver / CUDA & 582.28 / CUDA 13.0 runtime; torch built against 12.1 \\
+OS & Windows 11 Pro 26200 \\
+Python / PyTorch & 3.10.21 / 2.2.2+cu121 \\
+timm & 0.6.12 \\
+Env recipe & \code{setup/01\_create\_env.ps1}, verified by \code{setup/verify\_env.py} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Two deliberate departures from the repository README:
+
+\begin{itemize}
+\item \textbf{torch 2.2.2+cu121 rather than 1.11.0+cu113.} The wheel ships
+\code{sm\_50} cubins, which run on this card's \code{sm\_52}; verified by
+\code{torch.cuda.get\_arch\_list()} plus a live fp32/fp16 matmul.
+\item \textbf{A dedicated conda environment.} The machine's base environment
+carries timm 1.0.26, where \code{timm.models.layers.trunc\_normal\_tf\_} and
+\code{timm.models.helpers.named\_apply} have moved. The repository imports both.
+\end{itemize}
+
+An ordering trap worth recording: installing the repository's dependencies
+\emph{after} the pinned torch lets pip re-resolve the unpinned \code{torch}
+requirement of \code{timm}/\code{thop}/\code{ptflops}/\code{torchprofile} and
+silently replace 2.2.2+cu121 with a CPU build, leaving the cu121 CUDA DLLs in
+place. The result is two torch dist-infos and
+\code{OSError: [WinError 127] \ldots c10\_cuda.dll} at import. The setup script
+now installs torch last and pins the torch-dependent tools with
+\code{-{}-no-deps}.
+
+\section{Deviations from the paper's protocol}
+
+\begin{center}
+\begin{tabular}{@{}p{3.0cm}p{1.5cm}p{3.0cm}p{6.2cm}@{}}
+\toprule
+\textbf{Deviation} & \textbf{Paper} & \textbf{Here} & \textbf{Effect} \\
+\midrule
+Per-step batch & 6 & 2 & None on the loss; accumulation restores the effective batch \\
+Grad.\ accumulation & none & 3 (eff.\ batch 6) & Optimiser sees the paper's batch; BatchNorm statistics come from 2 samples, not 6 \\
+Precision & fp32 & fp32 & None (AMP measured 2.8--3.2$\times$ \emph{slower} here, \S4) \\
+Epochs & 300 & 20 & \textbf{Under-trained --- the main caveat on every Dice below} \\
+Validation & every epoch & every 2 epochs & Coarser best-checkpoint selection \\
+Dataloader workers & 8 & 2 & Throughput only \\
+Preprocessing & --- & authors' mirror & The 14$\rightarrow$9 label remap is correct as shipped and was left untouched; labels verified to span exactly 0--8 over 200 slices \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Everything here is a \textbf{reduced-budget reproduction at 20 of the paper's
+300 epochs}. No Dice below should be compared with a published number without
+repeating that sentence.
+
+Patch applied by \code{tools/apply\_low\_vram\_patch.py}, which rebuilds from
+\code{trainer.py.orig} every time and is reversible with \code{-{}-revert}. The
+LoMix loss module, the learnable weights, the operation set and the network are
+untouched.
+
+\section{Stage A --- efficiency verification}
+
+$224\times224$, batch 1, 50 timed iterations after 10 warm-up. Source:
+\code{logs/bench\_efficiency\_Ishad.json}.
+
+\begin{center}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+\textbf{Encoder} & \textbf{Params (M)} & \textbf{Dec.\ (M)} & \textbf{GMACs} &
+\textbf{Latency (ms)} & \textbf{img/s} & \textbf{Peak VRAM} \\
+\midrule
+pvt\_v2\_b0 & 3.921 & 0.507 & 0.657 & $17.70 \pm 2.75$ & 56.5 & 34.1\,MiB \\
+pvt\_v2\_b2 & 26.773 & 1.914 & 4.324 & $36.77 \pm 7.08$ & 27.2 & 147.0\,MiB \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The decoder accounts for 1.914\,M of 26.773\,M parameters with
+\code{pvt\_v2\_b2}, consistent with EMCAD's published decoder cost --- a useful
+check that the model is built as intended.
+
+\textbf{The zero-inference-overhead claim holds.} The mixing weights are
+parameters of the loss module, not of \code{EMCADNet}, so all four supervision
+arms share a byte-identical inference graph. One measurement settles it for all
+of them. Comparison against the paper's own cost figures:
+\textcolor{red}{\textbf{[FILL from the LoMix paper --- parameter counts and
+GMACs are comparable; latency on a Maxwell card is not]}}.
+
+\section{Stage B --- what fits in 4\,GB}
+
+Real forward + LoMix loss + backward + AdamW step on synthetic data, each trial
+in its own subprocess. Source: \code{logs/memfit\_Ishad\_lomix\_sweep.json}. The
+sweep was run twice; \textbf{peak memory was identical to the byte, step time
+was not.}
+
+\begin{center}
+\begin{tabular}{@{}llcrrrl@{}}
+\toprule
+\textbf{Encoder} & \textbf{Batch} & \textbf{AMP} & \textbf{Peak VRAM} &
+\textbf{Step (r1)} & \textbf{Step (r2)} & \textbf{Note} \\
+\midrule
+pvt\_v2\_b0 & 2 & off & 1095.9 & 1034 & 936 & \\
+pvt\_v2\_b0 & 4 & off & 2130.2 & 1787 & 1709 & \\
+pvt\_v2\_b0 & 6 & off & 3180.1 & 6558 & 5870 & over TDR watchdog \\
+pvt\_v2\_b0 & 2 & on & 1047.9 & 3288 & 3321 & AMP $\sim3.2\times$ slower \\
+pvt\_v2\_b2 & 1 & off & 978.5 & 640 & 779 & \\
+\textbf{pvt\_v2\_b2} & \textbf{2} & \textbf{off} & \textbf{1632.9} &
+  \textbf{1046} & \textbf{1415} & \textbf{chosen} \\
+pvt\_v2\_b2 & 3 & off & 2289.6 & 1432 & 2193 & r2 crosses the watchdog \\
+pvt\_v2\_b2 & 4 & off & 2941.4 & 3472 & 5398 & over TDR watchdog \\
+pvt\_v2\_b2 & 6 & off & 4268.3 & 7967 & 11144 & $>$4096\,MiB, WDDM paging \\
+pvt\_v2\_b2 & 2 & on & 1513.8 & 2940 & 3969 & AMP $\sim2.8\times$ slower \\
+pvt\_v2\_b2 & 4 & on & --- & --- & --- & \code{CUDNN\_STATUS\_EXECUTION\_FAILED} \\
+\bottomrule
+\end{tabular}
+\end{center}
+{\small VRAM in MiB, step time in ms.}
+
+\textbf{Chosen: \code{pvt\_v2\_b2}, batch 2, accumulation 3 (effective batch 6),
+AMP off.}
+
+\begin{enumerate}
+\item \textbf{AMP is a net loss on this card.} No tensor cores, so fp16
+convolution buys $\sim$5\,\% memory for a 2.8--3.2$\times$ step-time penalty ---
+the opposite of the usual advice, and only measurement shows it.
+\item \textbf{The binding constraint is the Windows TDR watchdog, not VRAM.}
+This is the display GPU; a kernel over ${\sim}2$\,s is killed and the CUDA
+context destroyed. Batch 4 crosses it in both runs.
+\item \textbf{Step timing is not reproducible to better than ${\sim}50\,\%$} on
+a machine whose GPU also drives the desktop. Batch 3 measured 1432\,ms and
+2193\,ms minutes apart with identical peak memory, so it was rejected despite
+fitting.
+\item \textbf{Encoder size barely matters}: \code{pvt\_v2\_b0} and
+\code{pvt\_v2\_b2} reach similar throughput, because the loss --- not the
+encoder --- dominates the step (\S7).
+\end{enumerate}
+
+The batch-6 row reporting 4268\,MiB on a 4096\,MiB card is not an error: WDDM
+allows oversubscription into host RAM, so it ``fits'' while thrashing.
+
+\section{Stage C --- the supervision ablation}
+
+Four arms, one network, one dataset, one schedule; only \code{-{}-supervision}
+differs. 20 epochs, effective batch 6, seed 2222, validation every 2 epochs.
+
+\begin{center}
+\begin{tabular}{@{}llrrrl@{}}
+\toprule
+\textbf{Arm} & \textbf{Isolates} & \textbf{Best Dice} & \textbf{Peak VRAM} &
+\textbf{Wall} & \textbf{Status} \\
+\midrule
+\code{last\_layer} & no deep supervision & 0.6764 & 892.7 & 364 & completed \\
+\code{deep\_supervision} & uniform per-scale & \textbf{0.7979} & 924.0 & 368 & completed \\
+\code{mutation} & mixing, unweighted & 0.7788 & 1067.0 & 405 & completed \\
+\code{lomix} & learnable weights & 0.7225$^\dagger$ & 1768.8 & 594 & \textbf{diverged (NaN) ep.\ 13} \\
+\bottomrule
+\end{tabular}
+\end{center}
+{\small VRAM in MiB, wall clock in minutes. $^\dagger$best value before divergence.}
+
+Validation curves (Dice at each validation):
+
+\begin{center}
+\begin{tabular}{@{}lp{11.5cm}@{}}
+\toprule
+\textbf{Arm} & \textbf{Curve} \\
+\midrule
+\code{last\_layer} & 0.676, 0.588, 0.562, 0.593, 0.569, 0.605, 0.566, 0.578, 0.618, 0.598 \\
+\code{deep\_supervision} & 0.659, 0.613, 0.607, 0.684, 0.626, 0.727, 0.759, 0.751, 0.741, \textbf{0.798} \\
+\code{mutation} & 0.563, 0.643, 0.698, 0.701, 0.683, 0.768, 0.772, 0.757, 0.773, \textbf{0.779} \\
+\code{lomix} & 0.609, 0.676, 0.708, 0.703, \textbf{0.7225}, 0.711, 0.000, 0.000 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Two things are visible immediately. \code{last\_layer} peaks at its \emph{first}
+validation and then decays --- consistent with the training-mode defect in
+\S6.3. And at this budget the paper's ordering does \textbf{not} reproduce:
+uniform deep supervision beats unweighted mixing, which beats the
+learnable-weight arm, which then diverges. Under-training is the most likely
+explanation and is not separable from the result at 20 epochs; \S8 lists what
+would settle it.
+
+\subsection{The \code{lomix} arm diverged}
+
+At iteration 14900, epoch 13, \code{loss}, \code{deep\_supervision\_loss} and
+\code{mutation\_loss} all became NaN simultaneously. Every subsequent validation
+returned Dice 0.000. The best pre-divergence value was 0.7225 at epoch 9.
+
+This was not a hardware event: fp32 throughout, no OOM, no watchdog reset, and
+the weights in \code{best.pth} are all finite. The cause is in the loss
+(\S6.2). An earlier \code{lomix} attempt survived to epoch 19 only because a
+machine shutdown had forced a restart at epoch 11 with a fresh optimizer, which
+reset the state that was accumulating toward overflow --- that run is reported
+separately as \textbf{not comparable}, because a resume without optimizer state
+is a different experiment.
+
+\subsection{Learned mixing weights}
+
+All weights initialise at $\mathrm{softplus}(0) = 0.6931$. Final values from the
+\code{lomix} arm before divergence:
+
+\begin{center}
+\begin{tabular}{@{}llp{7.2cm}@{}}
+\toprule
+\textbf{Group} & \textbf{Value} & \textbf{Movement from initialisation} \\
+\midrule
+Per-scale $p_4,p_3,p_2,p_1$ & 0.379, 0.386, 0.392, 0.400 & all fell to ${\approx}0.39$, nearly uniform \\
+\code{mul} (11 subsets) & 0.434--0.464 & \textbf{up-weighted} \\
+\code{add} (11 subsets) & 0.417--0.459 & \textbf{up-weighted} \\
+\code{wf} (11 subsets) & 0.385--0.397 & mid \\
+\code{concat} (11 subsets) & 0.3755--0.3770 & \textbf{collapsed, identical across all 11} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The per-scale weights barely differentiate at 20 epochs, which suggests LoMix's
+weighting needs far more budget to specialise than a reduced run provides. The
+\code{concat} collapse turned out to have a concrete cause --- \S6.2.
+
+\section{Defects found in the released codebase}
+
+All three were found by running the code, and all three are reproducible.
+
+\subsection{The training script cannot start}
+
+\code{train\_synapse\_lomix.py:10} imports \code{PVT\_CASCADE}, which is defined
+nowhere in the repository --- \code{lib/networks.py} defines only
+\code{EMCADNet}, and the only other reference is a commented-out model line. As
+shipped, the script fails at import before parsing an argument. EMCAD's
+equivalent script imports only \code{EMCADNet}, so this looks like leftover
+copy-paste.
+
+\subsection{Two defects in the combinatorial loss}
+
+Both verified empirically by \code{tools/diagnose\_loss\_ops.py} on the trained
+checkpoint, not merely read off the source.
+
+\textbf{\code{concat} rebuilds a random convolution on every forward pass.} In
+\code{trainer.py}:
+
+\begin{lstlisting}[language=Python]
+elif op == 'concat':
+    cat = torch.cat([output_maps[c] for c in comb], dim=1)
+    conv = nn.Conv2d(cat.size(1), self.num_classes, kernel_size=1).to(device)
+    mutated = conv(cat)
+\end{lstlisting}
+
+The conv is created inside \code{forward}, randomly initialised each call, never
+registered as a submodule and never given to the optimizer. Evidence: calling
+the loss twice with identical inputs under \code{no\_grad} gives
+
+\begin{center}
+\begin{tabular}{@{}lr l@{}}
+\toprule
+\textbf{Operation} & \textbf{Max $|a-b|$} & \\
+\midrule
+\code{add} & 0.0 & deterministic \\
+\code{mul} & 0.0 & deterministic \\
+\code{wf} & 0.0 & deterministic \\
+\textbf{\code{concat}} & \textbf{5.41} & \textbf{non-deterministic} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+and none of the loss module's 66 parameter tensors belongs to it (the conv
+parameters that \emph{are} registered all belong to
+\code{weighted\_fusion\_modules}, i.e.\ the \code{wf} operation). So the
+\code{concat} branch cannot learn and contributes a fresh random projection each
+step. This explains \S5.2 exactly: \code{concat}'s learnable weights have no
+gradient signal to differentiate on, so they collapse to a common value.
+
+\textbf{\code{mul} multiplies raw logits}, so a $k$-map combination is a
+$k$-fold product growing like $|\text{logit}|^k$. With the trained checkpoint's
+logits ($\max |p| = 6.16$):
+
+\begin{center}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Operation} & $k=2$ & $k=3$ & $k=4$ \\
+\midrule
+\code{add} & 12.0 & 17.9 & 23.6 \\
+\textbf{\code{mul}} & \textbf{36.2} & \textbf{211.0} & \textbf{1214.0} \\
+\code{wf} & 6.1 & 6.1 & 5.9 \\
+\code{concat} & 2.8 & 2.9 & 1.9 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Cross-entropy and Dice saturate on values of that size and the gradient
+overflows. Nothing clips or normalises the product. This is the mechanism behind
+the epoch-13 NaN, and it is a property of the method as released, not of this
+hardware --- the magnitudes above are computed on the model's own trained
+logits.
+
+\subsection{Training continues in eval mode after the first validation}
+
+\code{trainer.py} calls \code{model.train()} once \emph{before} the epoch loop;
+\code{inference()} calls \code{model.eval()} and runs at the end of every epoch;
+nothing switches back. From epoch 1 onward the decoder's \code{BatchNorm2d}
+layers normalise with frozen running statistics and stop updating them, and
+dropout/drop-path are inactive. The same pattern is present in the EMCAD and
+G-CASCADE trainers.
+
+This was \textbf{left intact} --- the published results were produced by this
+code, so preserving the behaviour is what replication means. The patch adds
+\code{-{}-restore\_train\_mode} (default off) so the alternative can be run as a
+separately labelled experiment. Not run here for lack of GPU time.
+
+\subsection{Windows portability}
+
+\code{worker\_init\_fn} is defined as a local function inside
+\code{trainer\_synapse}. Windows starts DataLoader workers with \code{spawn},
+which pickles the callable, and local functions are not picklable:
+\code{AttributeError: Can't pickle local object
+'trainer\_synapse.<locals>.worker\_init\_fn'}. Linux uses \code{fork} and is
+unaffected. Fixed by hoisting the function to module scope and binding the seed
+with \code{functools.partial}; seeding behaviour is unchanged.
+
+\section{Training cost of the supervision --- measured}
+
+Same network, same batch, same data; only \code{-{}-supervision} differs
+(\code{pvt\_v2\_b2}, $224^2$, batch 3, AMP off, \code{logs/memfit\_Ishad\_*.json}):
+
+\begin{center}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Arm} & \textbf{Peak train VRAM} & \textbf{Step time} &
+\textbf{vs \code{last\_layer}} \\
+\midrule
+\code{last\_layer} & 1008.2\,MiB & 649\,ms & $1.00\times$ \\
+\code{deep\_supervision} & 1053.7\,MiB & 708\,ms & $1.09\times$ \\
+\code{mutation} & 1268.3\,MiB & 938\,ms & $1.45\times$ \\
+\code{lomix} & 2289.6\,MiB & 1649\,ms & $\mathbf{2.54\times}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+LoMix costs $2.54\times$ step time and $2.27\times$ training memory over a
+single-logit baseline while adding nothing at inference, and roughly two thirds
+of that gap comes from the learnable-weight arm alone (\code{mutation}
+$\rightarrow$ \code{lomix}, 938 $\rightarrow$ 1649\,ms). The paper reports the
+inference cost; this training cost is not reported, and on constrained hardware
+it decides whether the method is runnable at all.
+
+\section{Discrepancies and what would settle them}
+
+\begin{enumerate}
+\item \textbf{The ordering does not reproduce at 20 epochs.}
+\code{deep\_supervision} (0.798) $>$ \code{mutation} (0.779) $>$ \code{lomix}
+(0.723, diverged). Most likely under-training: \S5.2 shows the mixing weights
+had barely differentiated from their common initialisation, so the mechanism
+that is supposed to create LoMix's advantage had not yet engaged. Settled by a
+full 300-epoch run, which this hardware cannot deliver in the available time.
+\item \textbf{The \code{lomix} arm has no completed run.} It needs either
+gradient clipping or a bounded \code{mul} (e.g.\ multiplying softmax
+probabilities rather than raw logits) to finish. Either is a change to the
+method and would have to be applied to every arm to keep the comparison fair.
+\item \textbf{Single seed, one dataset, one encoder, no statistical testing.}
+The \code{mutation}/\code{deep\_supervision} gap (0.779 vs 0.798) is small
+enough that one seed cannot separate them.
+\item Paper reference values for orientation:
+\textcolor{red}{\textbf{[FILL from the LoMix paper, clearly labelled as the
+paper's 300-epoch numbers, not results of these runs]}}.
+\end{enumerate}
+
+\section{Reproducing this}
+
+\begin{lstlisting}[language=bash]
+powershell -ExecutionPolicy Bypass -File setup\01_create_env.ps1
+conda activate lomix
+cd repos\LoMix
+python ..\..\tools\bench_efficiency.py
+python ..\..\tools\memfit.py
+cd ..\..
+python tools\check_data.py --repo repos\LoMix        # must print DATA OK
+python tools\apply_low_vram_patch.py --repo repos\LoMix
+.\run_ablation.ps1                                   # ~18 h, 4 arms
+python tools\collect_results.py --stamp <stamp>
+python tools\diagnose_loss_ops.py --ckpt <best.pth>  # the section 6.2 evidence
+\end{lstlisting}
+
+Attached: raw logs and manifests (\code{logs/}), the patch script and
+\code{trainer.py.orig} for a line-level diff, and the diagnostic tool.
+
+Runs are checkpointed after every epoch with model, optimizer, scaler,
+\code{best\_dice}, \code{iter\_num} and epoch, written atomically, so
+\code{-Resume} continues a shutdown-interrupted run identically rather than
+restarting the optimizer.
+
+\end{document}

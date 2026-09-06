@@ -1,0 +1,25 @@
+﻿{
+    "stamp":  "20260905_164457",
+    "host":  "ISHAD",
+    "repo_commit":  "464a945",
+    "encoder":  "pvt_v2_b2",
+    "img_size":  224,
+    "per_step_batch":  2,
+    "accum":  3,
+    "effective_batch":  6,
+    "amp":  false,
+    "max_epochs":  20,
+    "eval_every":  2,
+    "num_workers":  2,
+    "seed":  2222,
+    "arms":  [
+                 "last_layer",
+                 "deep_supervision",
+                 "mutation",
+                 "lomix"
+             ],
+    "restore_train_mode":  false,
+    "paper_epochs":  300,
+    "paper_batch":  6,
+    "note":  "reduced-budget reproduction on a GTX 960 4GB (sm_52); not a full-budget replication"
+}

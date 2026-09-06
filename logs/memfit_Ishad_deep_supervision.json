@@ -1,0 +1,29 @@
+{
+  "env": {
+    "timestamp": "2026-09-04T12:57:11",
+    "host": "Ishad",
+    "gpu": "NVIDIA GeForce GTX 960",
+    "capability": [
+      5,
+      2
+    ],
+    "vram_total_MiB": 4096,
+    "vram_free_at_start_MiB": 3395,
+    "torch": "2.2.2+cu121",
+    "supervision": "deep_supervision",
+    "tdr_threshold_s": 2.0
+  },
+  "rows": [
+    {
+      "status": "fit",
+      "peak_train_vram_MiB": 1053.7,
+      "step_ms": 707.6,
+      "tdr_risk": false,
+      "loss_module": "repo",
+      "encoder": "pvt_v2_b2",
+      "img_size": 224,
+      "batch_size": 3,
+      "amp": "off"
+    }
+  ]
+}
