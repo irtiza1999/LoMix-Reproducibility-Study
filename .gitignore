@@ -30,6 +30,7 @@ env/
 /repos/LoMix/.git-upstream/
 
 # Generated reports and scratch output
+/deliverables/
 *.log
 *.tmp
 *.bak
@@ -41,4 +42,3 @@ env/
 !/logs/*.json
 
 
-deliverables
