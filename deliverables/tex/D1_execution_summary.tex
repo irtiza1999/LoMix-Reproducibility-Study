@@ -50,7 +50,15 @@
                & Image Segmentation. Rahman \& Marculescu, NeurIPS 2025. \\
 \textbf{Code}  & \code{github.com/SLDGroup/LoMix} @ commit \code{464a945} \\
 \textbf{Data}  & Synapse Multi-organ (BTCV), 9 classes, $224\times224$, authors' archive \\
+\textbf{Harness} & \url{https://github.com/irtiza1999/LoMix-Reproducibility-Study} \\
 \end{tabular}
+
+\vspace{0.5em}
+\noindent{\small The harness repository contains every run log and manifest cited
+below, the patched LoMix source alongside its unmodified \code{.orig} backups,
+the environment setup, and the analysis tools. Datasets, pretrained weights and
+checkpoints are excluded by design; \code{setup/02\_data\_and\_weights.md}
+reproduces them locally.}
 
 \vspace{0.8em}
 \noindent\fbox{\parbox{0.97\textwidth}{\small
@@ -105,7 +113,7 @@ now installs torch last and pins the torch-dependent tools with
 Per-step batch & 6 & 2 & None on the loss; accumulation restores the effective batch \\
 Grad.\ accumulation & none & 3 (eff.\ batch 6) & Optimiser sees the paper's batch; BatchNorm statistics come from 2 samples, not 6 \\
 Precision & fp32 & fp32 & None (AMP measured 2.8--3.2$\times$ \emph{slower} here, \S4) \\
-Epochs & 300 & 20 & \textbf{Under-trained --- the main caveat on every Dice below} \\
+Epochs & 300$^\ast$ & 20 & \textbf{Under-trained --- the main caveat on every Dice below} \\
 Validation & every epoch & every 2 epochs & Coarser best-checkpoint selection \\
 Dataloader workers & 8 & 2 & Throughput only \\
 Preprocessing & --- & authors' mirror & The 14$\rightarrow$9 label remap is correct as shipped and was left untouched; labels verified to span exactly 0--8 over 200 slices \\
@@ -113,9 +121,14 @@ Preprocessing & --- & authors' mirror & The 14$\rightarrow$9 label remap is corr
 \end{tabular}
 \end{center}
 
-Everything here is a \textbf{reduced-budget reproduction at 20 of the paper's
-300 epochs}. No Dice below should be compared with a published number without
-repeating that sentence.
+$^\ast$The paper's main text does not state an epoch budget; 300 is the default
+in \code{train\_synapse\_lomix.py}. It is cited here as the repository's
+schedule, not as a published figure.
+
+Everything here is a \textbf{reduced-budget reproduction at 20 of the
+repository's default 300 epochs}. No Dice below should be compared with a
+published number without repeating that sentence. The paper's own results are
+averaged over at least three runs; mine are a single seed.
 
 Patch applied by \code{tools/apply\_low\_vram\_patch.py}, which rebuilds from
 \code{trainer.py.orig} every time and is reversible with \code{-{}-revert}. The
@@ -146,9 +159,17 @@ check that the model is built as intended.
 \textbf{The zero-inference-overhead claim holds.} The mixing weights are
 parameters of the loss module, not of \code{EMCADNet}, so all four supervision
 arms share a byte-identical inference graph. One measurement settles it for all
-of them. Comparison against the paper's own cost figures:
-\textcolor{red}{\textbf{[FILL from the LoMix paper --- parameter counts and
-GMACs are comparable; latency on a Maxwell card is not]}}.
+of them.
+
+The paper states this qualitatively rather than numerically --- ``the added
+parameters are negligible and used only during training, leaving the FLOPs,
+latency, and memory footprint at test-time unchanged'' (\S1) --- and gives no
+inference-cost table in the main text, so there is no published figure to
+compare against. The measurement above is therefore a direct confirmation of the
+claim rather than a reproduction of a reported number: parameter count, GMACs
+and peak inference VRAM are identical across all four supervision settings.
+Absolute latency is not comparable in any case, since the paper's experiments
+use an RTX A6000 (48\,GB) and these use a GTX 960.
 
 \section{Stage B --- what fits in 4\,GB}
 
@@ -415,7 +436,7 @@ it decides whether the method is runnable at all.
 (0.723, diverged). Most likely under-training: \S5.2 shows the mixing weights
 had barely differentiated from their common initialisation, so the mechanism
 that is supposed to create LoMix's advantage had not yet engaged. Settled by a
-full 300-epoch run, which this hardware cannot deliver in the available time.
+full-schedule run, which this hardware cannot deliver in the available time.
 \item \textbf{The \code{lomix} arm has no completed run.} It needs either
 gradient clipping or a bounded \code{mul} (e.g.\ multiplying softmax
 probabilities rather than raw logits) to finish. Either is a change to the
@@ -423,14 +444,60 @@ method and would have to be applied to every arm to keep the comparison fair.
 \item \textbf{Single seed, one dataset, one encoder, no statistical testing.}
 The \code{mutation}/\code{deep\_supervision} gap (0.779 vs 0.798) is small
 enough that one seed cannot separate them.
-\item Paper reference values for orientation:
-\textcolor{red}{\textbf{[FILL from the LoMix paper, clearly labelled as the
-paper's 300-epoch numbers, not results of these runs]}}.
+\end{enumerate}
+
+\subsection{Side-by-side with the published numbers}
+
+The paper's Table~1 reports exactly these four arms on exactly this backbone
+(PVT-EMCAD-B2, Synapse 8-organ), which makes the comparison direct. The left
+block is \textbf{the paper's}, averaged over at least three runs on an RTX
+A6000; the right block is \textbf{mine}, one seed at 20 epochs on a GTX 960.
+These are not like-for-like and the gap should not be read as a contradiction.
+
+\begin{center}
+\begin{tabular}{@{}lrrrcr@{}}
+\toprule
+& \multicolumn{3}{c}{\textbf{Paper (Table 1)}} & & \textbf{This work} \\
+\cmidrule(lr){2-4}\cmidrule(l){6-6}
+\textbf{Arm} & \textbf{DICE} & \textbf{HD95} & \textbf{mIoU} & &
+\textbf{DICE} \\
+\midrule
+\code{last\_layer} (LL) & 80.9 & 22.9 & 71.2 & & 67.6 \\
+\code{deep\_supervision} (DS) & 82.9 & 19.7 & 73.8 & & \textbf{79.8} \\
+\code{mutation} & 83.6 & 15.7 & 74.7 & & 77.9 \\
+\code{lomix} & \textbf{85.1} & \textbf{14.9} & \textbf{76.4} & & 72.3$^\dagger$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+{\small All values are percentages. $^\dagger$best before divergence at epoch
+13, not a completed run.}
+
+Three things follow.
+
+\begin{enumerate}
+\item \textbf{The published ordering is monotone
+(LL $<$ DS $<$ mutation $<$ LoMix); mine is not.} The paper reports $+4.2$ DICE
+for LoMix over LL, $+2.2$ over DS and $+1.5$ over unweighted mutation, with
+two-sided Wilcoxon signed-rank tests confirming significance over LL and DS.
+My runs reproduce the sign of the LL $\rightarrow$ DS step ($+12.2$, larger than
+the paper's $+2.0$) but not the DS $\rightarrow$ mutation $\rightarrow$ LoMix
+steps.
+\item \textbf{Absolute values are uniformly lower}, by 3--13 DICE. This is what
+20 epochs against a converged schedule looks like, and my best arm (79.8) sits
+just below the paper's \emph{weakest} arm (80.9) --- consistent with
+under-training rather than with a broken setup.
+\item \textbf{The margins I would need to resolve are small.} The paper's
+DS $\rightarrow$ LoMix gap is 2.2 DICE, established over at least three runs
+with a signed-rank test. A single seed at 20 epochs cannot separate effects of
+that size, which is why \S8.1 treats my ordering as unresolved rather than
+contradictory.
 \end{enumerate}
 
 \section{Reproducing this}
 
 \begin{lstlisting}[language=bash]
+git clone https://github.com/irtiza1999/LoMix-Reproducibility-Study.git
+cd LoMix-Reproducibility-Study
 powershell -ExecutionPolicy Bypass -File setup\01_create_env.ps1
 conda activate lomix
 cd repos\LoMix
@@ -444,8 +511,13 @@ python tools\collect_results.py --stamp <stamp>
 python tools\diagnose_loss_ops.py --ckpt <best.pth>  # the section 6.2 evidence
 \end{lstlisting}
 
-Attached: raw logs and manifests (\code{logs/}), the patch script and
-\code{trainer.py.orig} for a line-level diff, and the diagnostic tool.
+All of it is in the harness repository: raw run logs and per-sweep manifests in
+\code{logs/}, the patch script and the untouched \code{trainer.py.orig} for a
+line-level diff in \code{repos/LoMix/}, and the analysis tools
+(\code{collect\_results.py}, \code{diagnose\_loss\_ops.py}, \code{memfit.py},
+\code{bench\_efficiency.py}, \code{check\_data.py}, \code{smoke\_test.py}) in
+\code{tools/}. Every table in this document can be regenerated from those logs
+with \code{collect\_results.py}.
 
 Runs are checkpointed after every epoch with model, optimizer, scaler,
 \code{best\_dice}, \code{iter\_num} and epoch, written atomically, so

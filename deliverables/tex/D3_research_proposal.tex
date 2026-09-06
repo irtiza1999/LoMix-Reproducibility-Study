@@ -48,6 +48,7 @@
 \noindent\begin{tabular}{@{}ll@{}}
 \textbf{Builds on} & LoMix (NeurIPS 2025), EMCAD (CVPR 2024), G-CASCADE (WACV 2024) \\
 \textbf{Preliminary results} & From my own replication of LoMix on Synapse (Deliverables 1--2) \\
+\textbf{Harness} & \url{https://github.com/irtiza1999/LoMix-Reproducibility-Study} \\
 \end{tabular}
 
 \section{Motivation and significance}
@@ -322,7 +323,9 @@ cluster access, which I would expect to plan around rather than assume.
 \section{Preliminary results}
 
 All from my own LoMix replication (Deliverable 1); every figure traces to a run
-log. Reduced budget: 20 of the paper's 300 epochs, effective batch 6, seed 2222.
+log, and the logs, the patched source and the analysis tools are public at
+\url{https://github.com/irtiza1999/LoMix-Reproducibility-Study}. Reduced budget:
+20 of the repository's default 300 epochs, effective batch 6, seed 2222.
 
 \begin{center}
 \begin{tabular}{@{}lrl@{}}
@@ -337,8 +340,13 @@ log. Reduced budget: 20 of the paper's 300 epochs, effective batch 6, seed 2222.
 \end{tabular}
 \end{center}
 
+For reference, the paper's Table~1 reports the same four arms on the same
+backbone as 80.9 / 82.9 / 83.6 / 85.1 DICE, averaged over at least three runs on
+an RTX A6000.
+
 \textbf{These runs do not reproduce the paper's ordering, and I do not claim
-they refute it.} At 20 of 300 epochs, with one seed, the mixing weights had
+they refute it.} At 20 of the default 300 epochs, with one seed, the mixing
+weights had
 barely differentiated (\S2.1) --- the mechanism that is supposed to produce
 LoMix's advantage had not yet engaged. What the runs \emph{do} establish,
 independently of budget, is: the zero-inference-overhead claim (measured

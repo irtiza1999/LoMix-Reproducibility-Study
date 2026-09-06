@@ -51,11 +51,13 @@
 \textbf{Code}  & \code{github.com/SLDGroup/LoMix} @ \code{464a945} \\
 \textbf{Data}  & Synapse Multi-organ (BTCV), 9 classes, $224\times224$ \\
 \textbf{Hardware} & GTX 960, 4\,GB, capability 5.2 (Maxwell, no tensor cores) \\
+\textbf{Harness} & \url{https://github.com/irtiza1999/LoMix-Reproducibility-Study} \\
 \end{tabular}
 
 \vspace{0.6em}
 \noindent{\small Full setup notes, run logs, per-arm curves and reproduction
-commands are in the accompanying execution summary (Deliverable 1).}
+commands are in the accompanying execution summary (Deliverable 1). Every
+number below is regenerable from the logs in the harness repository above.}
 
 \section{What the paper does}
 
@@ -128,8 +130,8 @@ differs.
 isolates the learned weighting from the mixing itself. If the gain came only
 from having more loss terms, that pair would show it.
 
-Constraints forced a \textbf{reduced-budget reproduction}: 20 of the paper's 300
-epochs, per-step batch 2 with gradient accumulation 3 to restore the paper's
+Constraints forced a \textbf{reduced-budget reproduction}: 20 of the
+repository's default 300 epochs (the paper's main text states no epoch budget), per-step batch 2 with gradient accumulation 3 to restore the paper's
 effective batch of 6, fp32, validation every 2 epochs. Configuration was chosen
 by measurement, not guesswork --- a memory/latency sweep showed that AMP is
 2.8--3.2$\times$ \emph{slower} on a card without tensor cores, and that the
@@ -194,8 +196,37 @@ inference.
 \end{tabular}
 \end{center}
 
-Two observations. \code{last\_layer} peaks at its \emph{first} validation and
-decays thereafter, while the supervised arms climb steadily --- consistent with
+The paper's Table~1 reports these same four arms on this same backbone
+(PVT-EMCAD-B2, Synapse 8-organ), averaged over at least three runs on an RTX
+A6000, which makes the comparison direct --- though not like-for-like:
+
+\begin{center}
+\begin{tabular}{@{}lrrrcr@{}}
+\toprule
+& \multicolumn{3}{c}{\textbf{Paper (Table 1)}} & & \textbf{This work} \\
+\cmidrule(lr){2-4}\cmidrule(l){6-6}
+\textbf{Arm} & \textbf{DICE} & \textbf{HD95} & \textbf{mIoU} & & \textbf{DICE} \\
+\midrule
+LL (\code{last\_layer}) & 80.9 & 22.9 & 71.2 & & 67.6 \\
+DS (\code{deep\_supervision}) & 82.9 & 19.7 & 73.8 & & \textbf{79.8} \\
+\code{mutation} & 83.6 & 15.7 & 74.7 & & 77.9 \\
+\code{lomix} & \textbf{85.1} & \textbf{14.9} & \textbf{76.4} & & 72.3$^\dagger$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+{\small Percentages. $^\dagger$best before divergence at epoch 13, not a
+completed run.}
+
+The published ordering is monotone; mine is not. My absolute values are
+uniformly lower, and my best arm (79.8) sits just below the paper's
+\emph{weakest} arm (80.9) --- what 20 epochs against a converged schedule looks
+like, rather than a broken setup. The margins at stake are also small: the
+paper's DS $\rightarrow$ LoMix gap is 2.2 DICE, established over at least three
+runs with a two-sided Wilcoxon signed-rank test. One seed at 20 epochs cannot
+resolve an effect that size.
+
+Two further observations. \code{last\_layer} peaks at its \emph{first}
+validation and decays thereafter, while the supervised arms climb steadily --- consistent with
 \S4.5. And the learned mixing weights had barely differentiated: from a common
 initialisation of $\mathrm{softplus}(0) = 0.693$, the four per-scale weights
 ended at 0.379, 0.386, 0.392, 0.400. The mechanism supposed to create LoMix's
@@ -276,14 +307,15 @@ works on Linux.
 
 \section{Limitations of this replication}
 
-Single seed, 20 of 300 epochs, one dataset, one encoder, no statistical testing.
+Single seed, 20 of the repository's default 300 epochs, one dataset, one
+encoder, no statistical testing.
 The \code{deep\_supervision}/\code{mutation} gap (0.798 vs 0.779) is well inside
 what one seed can produce. What these runs \textbf{do} support independently of
 budget: the inference-cost claim (measured directly), the training-cost ratios
 (measured under identical conditions), and the two loss defects (verified on the
 model's own logits, not dependent on training length). What they do \textbf{not}
 settle is whether LoMix outperforms uniform deep supervision at full budget ---
-that needs the 300-epoch run this hardware cannot deliver.
+that needs the full-schedule run this hardware cannot deliver.
 
 \section{Where I would take it}
 
